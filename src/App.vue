@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <div class="choose-seat">
+    <!-- <div class="choose-seat">
       <header>
         <h1>选座系统</h1>
 
@@ -58,12 +58,31 @@
           @seat-click="handleSeatClick"
         />
       </div>
+    </div> -->
+
+    <div class="container">
+      <ChooseSeat
+        :col="col"
+        :row="row"
+        :zoom="zoom"
+        :groups="groups"
+        :legend="legend"
+        @checked="handleSeatClick"
+      >
+        这里放一个表格
+      </ChooseSeat>
     </div>
   </div>
 </template>
 
 <script>
-import ChooseSeat from './components/ChooseSeat.vue'
+// import ChooseSeat from './components/ChooseSeat.vue'
+import ChooseSeat from './components/v2/ChooseSeat.vue'
+import {
+  statusMap,
+  statusTextMap,
+  colorsMap
+} from './components/v2/components/constants'
 
 export default {
   name: 'App',
@@ -73,195 +92,158 @@ export default {
 
   data () {
     return {
-      width: 1000,
-      height: 1000,
+      // 行数量，y轴
+      row: 20,
 
-      statusMap: {
-        idle: ['#66DE93', '空閑中Idle', true, true],
-        reserved: ['#FFF323', '已預約未占用Reserved', true, false],
-        claimed: ['#FF884B', '占用中Claimed', true, false],
-        breakdown: ['#EF4F4F', '故障Breakdown', true, false],
-        unavailable: ['rgba(0, 0, 0, 0.15)', '禁用中Unavailable', false, false]
-      },
+      // 列数量，x轴
+      col: 20,
 
-      coordinate: {
-        xAxis: {
-          value: 30,
-          text: '横向'
-        },
-        yAxis: {
-          value: 15,
-          text: '纵向'
-        }
-      },
+      zoom: 1,
 
-      mockData: [
+      template1: [
         {
           x: 5,
-          y: 2,
-          info: {
-            status: 'reserved',
-            displayName: 'GG570'
-          }
+          y: 4,
+          status: 2,
+          text: 'GD801',
+          id: 1
         },
         {
           x: 4,
           y: 3,
-          info: {
-            status: 'reserved',
-            displayName: 'GG571'
-          }
+          status: 1,
+          text: 'GD802',
+          id: 2
         },
         {
           x: 3,
           y: 4,
-          info: {
-            status: 'idle',
-            displayName: 'GG572'
-          }
+          status: 1,
+          text: 'GD803',
+          id: 3
         },
         {
           x: 2,
           y: 5,
-          info: {
-            status: 'claimed',
-            displayName: 'GG574'
-          }
+          status: 1,
+          text: 'GD804',
+          id: 4
         },
         {
           x: 3,
           y: 6,
-          info: {
-            status: 'idle',
-            displayName: 'GG576'
-          }
+          status: 3,
+          text: 'GD805',
+          id: 5
         },
         {
           x: 4,
           y: 7,
-          info: {
-            status: 'claimed',
-            displayName: 'GG578'
-          }
+          status: 5,
+          text: 'GD806',
+          id: 6
         },
         {
           x: 5,
           y: 8,
-          info: {
-            status: 'claimed',
-            displayName: 'GG580'
-          }
+          status: 1,
+          text: 'GD807',
+          id: 7
         },
         {
           x: 6,
           y: 7,
-          info: {
-            status: 'idle',
-            displayName: 'GG579'
-          }
+          status: 1,
+          text: 'GD808',
+          id: 8
         },
         {
           x: 7,
           y: 6,
-          info: {
-            status: 'claimed',
-            displayName: 'GG577'
-          }
+          status: 4,
+          text: 'GD809',
+          id: 9
         },
         {
           x: 8,
           y: 5,
-          info: {
-            status: 'claimed',
-            displayName: 'GG575'
-          }
+          status: 1,
+          text: 'GD810',
+          id: 10
         },
         {
           x: 7,
           y: 4,
-          info: {
-            status: 'unavailable',
-            displayName: 'GG573'
-          }
+          status: 2,
+          text: 'GD811',
+          id: 11
+        },
+        {
+          x: 6,
+          y: 3,
+          status: 1,
+          text: 'GD812',
+          id: 12
         }
       ],
 
-      module: ['coordinate', 'legend', 'statistics'],
-
-      statisticsSetting: {
-        title: '统计',
-        thead: ['状态', '数量']
-      }
+      legend: [1, 2, 3, 4, 5].map(item => ({
+        value: item,
+        text: statusTextMap[item],
+        backgroundColor: colorsMap[item],
+        status: statusMap[item]
+      }))
     }
   },
 
   computed: {
-    seatData () {
-      const {
-        mockData,
-        coordinate: {
-          xAxis: { value: column },
-          yAxis: { value: row }
-        }
-      } = this
+    groups () {
+      const { template1, col, row } = this
 
-      const data = []
-
-      for (let x = 1; x <= column; x++) {
-        for (let y = 1; y <= row; y++) {
-          let item = mockData.find(item => item.x === x && item.y === y)
-          data.push([
-            x,
-            y,
-            item?.info || {}
-          ])
-        }
-      }
-
-      return data
-    },
-
-    /**
-     * 统计
-     */
-    statistics () {
-      const { seatData } = this
-
-      return seatData.reduce((prev, [,,info]) => {
-        if (info?.status) {
-          if (!prev[info.status]) {
-            prev[info.status] = 0
+      return [
+        {
+          id: 1,
+          row: 10,
+          col: 10,
+          initialValue: template1,
+          initialPosition: [1, 1],
+          boardSize: [col, row],
+          draggable: true,
+          selectable: false,
+          groupName: {
+            name: 'LCKLIBInternet3',
+            size: [3, 1],
+            position: [3, 4],
+            background: 'rgba(0,0,0,.6)',
+            color: '#fff'
           }
-          prev[info.status]++
+        },
+        {
+          id: 2,
+          row: 10,
+          col: 10,
+          initialValue: template1,
+          initialPosition: [10, 2],
+          boardSize: [col, row],
+          draggable: false,
+          selectable: true,
+          groupName: {
+            name: 'LCKLIBInternet4',
+            size: [3, 1],
+            position: [3, 4],
+            background: 'rgba(0,0,0,.6)',
+            color: '#fff'
+          }
         }
-        return prev
-      }, {})
+      ]
+
+      
     }
   },
 
   methods: {
-    handleSeatClick (info) {
-      console.log('seat clicked.', info)
-      // @example
-      if (info.data.status === 'idle') {
-        this.mockData = this.mockData.map(item => {
-          if (item.x === info.x && item.y === info.y) {
-            item.info.status = 'claimed'
-          }
-
-          return item
-        })
-      }
-    },
-
-    handleCheckboxClick (e) {
-      const { value } = e.target
-
-      if (this.module.includes(value)) {
-        this.module = this.module.filter(item => item !== value)
-      } else {
-        this.module.push(value)
-      }
+    handleSeatClick (id, data) {
+      console.log('seat clicked.', id, data)
     }
   }
 }
