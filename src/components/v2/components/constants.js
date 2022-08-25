@@ -3,7 +3,7 @@ export const statusMap = {
   2: 'reserved',
   3: 'claimed',
   4: 'breakdown',
-  5: 'unavailable',
+  5: 'unavailable'
 }
 
 export const colorsMap = {
@@ -11,7 +11,7 @@ export const colorsMap = {
   2: '#FDD63D',
   3: '#FFA279',
   4: '#F1525D',
-  5: '#E4E4E4',
+  5: '#E4E4E4'
 }
 
 export const statusTextMap = {
@@ -19,5 +19,5 @@ export const statusTextMap = {
   2: '已预约未占用 Reserved',
   3: '占用中 Claimed',
   4: '故障 Breakdown',
-  5: '禁用中 Unavailable',
+  5: '禁用中 Unavailable'
 }

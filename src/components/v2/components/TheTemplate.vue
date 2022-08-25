@@ -2,6 +2,9 @@
   <svg
     ref="Template"
     class="template-wrapper"
+    :class="{
+      checked: groupChecked
+    }"
     :width="width * zoom"
     :height="height * zoom"
     :viewBox="`0 0 ${width} ${height}`"
@@ -24,7 +27,6 @@
         :fill="groupName.background || 'rgba(0,0,0,.5)'"
       />
 
-      
       <foreignObject
         :width="groupNameSize[0]"
         :height="groupNameSize[1]"
@@ -55,7 +57,8 @@
             "
             :style="{
               fontSize: `${size / 3}px`,
-              color: groupName.color || '#fff'
+              color: groupName.color || '#fff',
+              background: groupName.background
             }"
           >
             {{ groupName.name }}
@@ -75,10 +78,10 @@
         :y="getCoordinate('y', item.y)"
         :width="size"
         :height="size"
-        :fill="item.status | colorFilter"
-        :stroke="item.status | colorFilter"
+        :fill="colorFilter(item.status)"
+        :stroke="colorFilter(item.status)"
       />
-      
+
       <foreignObject
         v-for="item of initialValue"
         :key="`box-text-${item.x}-${item.y}`"
@@ -94,10 +97,12 @@
             height: 100%;
             margin: 0;
             padding: 0;
+            background: transparent;
           "
         >
           <p
             :data-selectable="selectable"
+            :data-id="id"
             style="
               box-sizing: border-box;
               display: flex;
@@ -110,6 +115,7 @@
               line-height: 1.1;
               word-break: break-all;
               border: 1px solid transparent;
+              background: transparent;
             "
             :style="{
               fontSize: `${size / 3}px`,
@@ -132,22 +138,18 @@
 import throttle from 'lodash.throttle'
 import SeatMixin from './mixins'
 
-import {
-  colorsMap
-} from './constants'
-
 export default {
   name: 'TheTemplate',
 
   mixins: [SeatMixin],
 
-  filters: {
-    colorFilter (status) {
-      return colorsMap[status] || '#fff'
-    }
-  },
-
   props: {
+    // 当前模板的 id
+    id: {
+      type: [String, Number],
+      default: 0
+    },
+
     // 行数量，y轴
     row: {
       type: Number,
@@ -183,7 +185,7 @@ export default {
     // 是否可拖动
     draggable: {
       type: Boolean,
-      default: false,
+      default: false
     },
     // 是否可选中
     selectable: {
@@ -232,6 +234,50 @@ export default {
     groupName: {
       type: [Object, Boolean],
       default: false
+    },
+
+    allowDuplicateCheck: {
+      type: Boolean,
+      default: false
+    },
+
+    // 当前群组是否处于选中状态
+    groupChecked: {
+      type: Boolean,
+      default: false
+    },
+
+    statusMap: {
+      type: Object,
+      default: () => ({
+        1: 'idle',
+        2: 'reserved',
+        3: 'claimed',
+        4: 'breakdown',
+        5: 'unavailable'
+      })
+    },
+
+    statusTextMap: {
+      type: Object,
+      default: () => ({
+        1: '空闲中 Idle',
+        2: '已预约未占用 Reserved',
+        3: '占用中 Claimed',
+        4: '故障 Breakdown',
+        5: '禁用中 Unavailable'
+      })
+    },
+
+    colorsMap: {
+      type: Object,
+      default: () => ({
+        1: '#6CE4DF',
+        2: '#FDD63D',
+        3: '#FFA279',
+        4: '#F1525D',
+        5: '#E4E4E4'
+      })
     }
   },
 
@@ -242,6 +288,8 @@ export default {
 
       startPosition: [],
       cachedTranslate: [],
+
+      cachedPosition: [], // 记录一开始的偏移量，这个数据用于计算最终拖动了几个格子
 
       currentSelectedItem: null
     }
@@ -261,7 +309,7 @@ export default {
     },
 
     offset () {
-      return { x: 0, y: 0}
+      return { x: 0, y: 0 }
     },
 
     // 限制点
@@ -273,11 +321,10 @@ export default {
         boardSize[1] || row
       ]
 
-      // 取出最上、最右、最下、最左的四个点
-      const initial = initialValue.slice(0, 4)
+      // 需要补充到四个点
       const result = initialValue.reduce((prev, item) => {
         // 上
-        if (item.y < prev[0].y) {
+        if (prev[0].y === 0 || item.y < prev[0].y) {
           prev.splice(0, 1, item)
         }
 
@@ -292,12 +339,12 @@ export default {
         }
 
         // 左
-        if (item.x < prev[3].x) {
+        if (prev[3].x === 0 || item.x < prev[3].x) {
           prev.splice(3, 1, item)
         }
         return prev
-      }, initial).map((item, index) => index % 2 === 0 ? item.y : item.x)
-      
+      }, Array(4).fill({ x: 0, y: 0 })).map((item, index) => index % 2 === 0 ? item.y : item.x)
+
       return [
         // 上
         zoom * (1 - result[0]) * (size + gap),
@@ -319,7 +366,8 @@ export default {
         top: zoom * (size + gap * 2) + 'px',
         zIndex: draggable ? 2 : 1, // 可拖动的元素层级更高
         transform: `translate(${translateX}px, ${translateY}px)`,
-        cursor: draggable ? 'move' : 'auto'
+        cursor: draggable ? 'move' : 'auto',
+        userSelect: 'none'
       }
     },
 
@@ -355,7 +403,7 @@ export default {
         groupName.position[0] * (size + gap) - gap / 2,
         groupName.position[1] * (size + gap) - gap / 2
       ]
-    },
+    }
   },
 
   watch: {
@@ -369,8 +417,15 @@ export default {
 
           this.translateX = x * (size + gap) * zoom
           this.translateY = y * (size + gap) * zoom
+
+          this.cachedPosition = [x, y]
         }
       }
+    },
+
+    zoom (newVal, oldValue) {
+      this.translateX = this.translateX / oldValue * newVal
+      this.translateY = this.translateY / oldValue * newVal
     }
   },
 
@@ -385,7 +440,14 @@ export default {
   },
 
   methods: {
+    colorFilter (val) {
+      return this.colorsMap?.[val] || 'transparent'
+    },
+
     handleDragStart (e) {
+      // 更新被选中的模板
+      this.$emit('group-checked', this.id)
+
       if (!this.draggable) {
         return
       }
@@ -454,11 +516,24 @@ export default {
 
       this.translateX = Math.min(rightLimit, Math.max(leftLimit, translateX))
       this.translateY = Math.min(bottomLimit, Math.max(topLimit, translateY))
+
+      // 提交移动了多少个格子，给上层组件计算最终的坐标
+      this.$emit('template-drag-end', {
+        id: this.id,
+        moveSize: [
+          this.translateX / ((this.size + this.gap) * this.zoom) - this.cachedPosition[0],
+          this.translateY / ((this.size + this.gap) * this.zoom) - this.cachedPosition[1]
+        ]
+      })
     },
 
     handleWrapperClick (e) {
       const target = e.target
-      if (!this.selectable || !target.getAttribute('data-selectable')) {
+      if (
+        !this.selectable ||
+        !target.getAttribute('data-selectable') ||
+        ('' + target.getAttribute('data-id')) !== ('' + this.id)
+      ) {
         this.currentSelectedItem = null
       }
     },
@@ -467,10 +542,14 @@ export default {
       if (!this.selectable) {
         return
       }
-      const { currentSelectedItem } = this
 
-      if (currentSelectedItem?.x === item.x && currentSelectedItem?.y === item.y) {
-        return
+      // 是否允许重复点击
+      if (!this.allowDuplicateCheck) {
+        const { currentSelectedItem } = this
+
+        if (currentSelectedItem?.x === item.x && currentSelectedItem?.y === item.y) {
+          return
+        }
       }
 
       this.currentSelectedItem = item
@@ -478,6 +557,7 @@ export default {
       const { size, gap, translateX, translateY, zoom } = this
 
       this.$emit('checked', {
+        id: item.id,
         // 当前块的位置
         current: {
           x: item.x,
@@ -487,6 +567,10 @@ export default {
         backBoard: {
           x: item.x + translateX / (size + gap) / zoom,
           y: item.y + translateY / (size + gap) / zoom
+        },
+        position: {
+          x: e.clientX,
+          y: e.clientY
         }
       })
     }
@@ -497,8 +581,11 @@ export default {
 <style scoped>
 .template-wrapper {
   user-select: none;
+  z-index: 1;
 }
-.template-wrapper.moving {
+.template-wrapper.moving,
+.template-wrapper.checked {
   background-color: rgba(25, 25, 200, .1);
+  z-index: 3 !important;
 }
 </style>

@@ -4,6 +4,7 @@
     :height="height * zoom"
     :viewBox="`0 0 ${width} ${height}`"
     xmlns="http://www.w3.org/2000/svg"
+    style="user-select: none"
   >
     <!-- 坐标轴 -->
     <g name="coordinate">
@@ -174,7 +175,3 @@ export default {
   }
 }
 </script>
-
-<style>
-
-</style>
